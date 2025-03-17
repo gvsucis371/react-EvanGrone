@@ -19,7 +19,7 @@ function Driver(props) {
     );
 }
 
-function DriversDisplay(props) {
+function Display(props) {
 return (
     <div> 
     <h1>Formula 1 Drivers</h1>
@@ -36,4 +36,5 @@ return (
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<Display drivers={drivers_list} />);
 root.render(DriversDisplay);
