@@ -39,7 +39,7 @@ function Display(props) {
 
 function App() {
   return (
-      <Display drivers={drivers_list} />
+      <Display drivers={drivers_list} /> // pass drivers list as a prop to display 
   );
 }
 
