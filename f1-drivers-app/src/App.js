@@ -1,6 +1,5 @@
 // https://legacy.reactjs.org/docs/introducing-jsx.html
 
-import ReactDOM from 'react-dom/client';
 import React from 'react';
 
 const drivers_list = [
@@ -38,6 +37,10 @@ function Display(props) {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<Display drivers={drivers_list} />);
-export default Display;
+function App() {
+  return (
+      <Display drivers={drivers_list} />
+  );
+}
+
+export default App;

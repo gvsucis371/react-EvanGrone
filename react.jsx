@@ -37,4 +37,4 @@ return (
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<Display drivers={drivers_list} />);
-root.render(DriversDisplay);
+root.render(Display);
