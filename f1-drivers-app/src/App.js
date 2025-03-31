@@ -1,17 +1,14 @@
 // https://www.w3schools.com/react/react_forms.asp
 // https://www.freecodecamp.org/news/how-to-perform-crud-operations-using-react/
 // https://www.geeksforgeeks.org/how-to-do-crud-operations-in-reactjs/
+// Code from ColorList3_routing Sample code in Github was basis for parts of code for part 3 API HW
 
+import React, { useState, useEffect } from 'react'
+import './index.css'
+import DriverAPI from './DriverAPI'
 
-import React, { useState } from 'react';
-import './index.css';
-
-const drivers_list = [
-    { id: 1, name: "Lewis Hamilton", email: "hamilton@hp.com", wins: 105, team: "HP Scuderia Ferrari" },
-    { id: 2, name: "Fernando Alonso", email: "fernando@aramco.com", wins: 32, team: "Aramco Aston Martin Racing" },
-    { id: 3, name: "Kimi Antonelli", email: "antonelli@petronas.com", wins: 0, team: "Petronas AMG Mercedes" },
-    { id: 4, name: "Max Verstappen", email: "verstappen@oracle.com", wins: 65, team: "Oracle Red Bull Racing" },
-];
+// Default empty driver for form
+const defaultDriver = { id: null, name: '', email: '', wins: '', team: '' }
 
 function Driver(props) {
     return (
@@ -20,94 +17,167 @@ function Driver(props) {
             <p>Email: {props.driver.email}</p>
             <p>Wins: {props.driver.wins}</p>
             <p>Team: {props.driver.team}</p>
-            <button onClick={() => props.Edit(props.driver)}>Edit Driver Details</button>
-            <button onClick={() => props.Delete(props.driver.id)}>Delete Driver</button>
+            <button onClick={() => props.onEditDriver(props.driver)}>Edit Driver Details</button>
+            <button onClick={() => props.onDeleteDriver(props.driver.id)}>Delete Driver</button>
         </li>
-    );
+    )
 }
 
 function App() {
-    const [drivers, setDrivers] = useState(drivers_list);
-    const [form, setForm] = useState({ id: null, name: '', email: '', wins: '', team: '' });
+    const [drivers, setDrivers] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [message, setMessage] = useState(undefined)
+    const [editMode, setEditMode] = useState(false)
+    const [driverToEdit, setDriverToEdit] = useState(defaultDriver)
 
-    const handleChange = (event) => {
-        // handles changes from input
-        // event.target.name is changed field, so email, name, wins, and updates it after taking existing form 
-        setForm({ ...form, [event.target.name]: event.target.value });
-    };
+    let fetchDrivers = () => {
+        setLoading(true)
+        console.log('Fetching drivers')
+        // fetchColors returns a promise (hence the ability to still
+        // use then and catch below.)
+        DriverAPI.fetchDrivers()
+            .then(data => {
+                setMessage(undefined)
+                setDrivers(data)
+                setLoading(false)
+            }).catch(problem => {
+                setLoading(false)
+                setMessage(`Unable to load drivers from the server: ${problem}`)
+            })
+    }
 
-    const handleSubmit = (event) => {
-        event.preventDefault();
-        if (form.id) {
-            // Update existing driverss, loops thorugh the drivers with map
-            // take existing form and checks if id matches the driver we are editing, if not then the driver remains the same 
-            setDrivers(drivers.map(d => (d.id === form.id ? { ...form} : d)));
-        } else {
-            // Create new driver with new id
-            setDrivers([...drivers, { ...form, id: drivers_list.length + 1}]);
+    // The [] below is important, otherwise, 
+    // we end up making an API call on every update.
+    useEffect(fetchDrivers, [])
+
+    const finishSubmit = (newDrivers) => {
+        setDrivers(newDrivers)
+        setEditMode(false)
+        setDriverToEdit(defaultDriver)
+    }
+
+    const submit = (event) => {
+        event.preventDefault()
+        // Check for duplicate emails, Changed check to be server side 
+        // if (drivers.some(d => d.email === driverToEdit.email && d.id !== driverToEdit.id)) {
+        //     setMessage("Email already exists. Please use a unique email address.")
+        //     return
+        // }
+        if (editMode) {
+            console.log('In edit mode.')
+            DriverAPI.modifyDriver(driverToEdit).then(data => {
+                    console.log('Received from modify driver post')
+                    console.log(data)
+                    const newDrivers = drivers.map(item => item.id === driverToEdit.id ? driverToEdit : item)
+                    finishSubmit(newDrivers)
+                })
+            } else {
+                console.log('In new driver mode.')
+                DriverAPI.addDriver(driverToEdit).then(data => {
+                        console.log('Received from new driver post')
+                        console.log(data)
+                        const newDriver = { ...driverToEdit, id: data.id }
+                        // Remember, use a completely new object
+                        // when updating state.
+                        const newDrivers = [...drivers, newDriver]
+                        finishSubmit(newDrivers)
+                    })
+                    .catch(error => {
+                        console.log('Problem saving new driver')
+                        console.log(error)
+                        setMessage(`Error adding driver: ${error.message}`)
+                    })
         }
-        setForm({ id: null, name: '', email: '', wins: '', team: '' });
-    };
+    }
+
+    const updateFormData = (driver) => {
+        setDriverToEdit(driver)
+    }
+
+    const editDriver = (driver) => {
+        setDriverToEdit(driver)
+        setEditMode(true)
+    }
+
+    const cancelEdit = () => {
+        setDriverToEdit(defaultDriver)
+        setEditMode(false)
+    }
 
     const handleDelete = (id) => {
-        // delete the driver filters out drivers that don't match the id we want to delete, setting the state to the filtered list
-        setDrivers(drivers.filter(driver => driver.id !== id));
-    };
-
-    const handleEdit = (driver) => {
-        setForm(driver);
-    };
+        DriverAPI.deleteDriver(id).then(() => {
+                const newDrivers = drivers.filter(driver => driver.id !== id)
+                setDrivers(newDrivers)
+            }).catch(error => {
+                console.log('Problem deleting driver')
+                console.log(error)
+                setMessage(`Error deleting driver: ${error.message}`)
+            })
+    }
 
     return (
         <div className='page-container'>
             <h1>Formula 1 Drivers</h1>
             <div className='form'>
-                <form onSubmit={handleSubmit}>
+                <h2>{editMode ? 'Edit' : 'Add'} Driver</h2>
+                <form onSubmit={submit}>
                     <input
                         type='text'
                         name='name'
                         placeholder='Driver Name'
-                        value={form.name}
-                        onChange={handleChange}
+                        value={driverToEdit.name}
+                        onChange={(event) => updateFormData({ ...driverToEdit, name: event.target.value })}
                         required
                     />
                     <input
                         type='text'
                         name='email'
                         placeholder='Driver Email'
-                        value={form.email}
-                        onChange={handleChange}
+                        value={driverToEdit.email}
+                        onChange={(event) => updateFormData({ ...driverToEdit, email: event.target.value })}
                         required
                     />
                     <input
                         type='number'
                         name='wins'
                         placeholder='Driver Wins'
-                        value={form.wins}
-                        onChange={handleChange}
+                        value={driverToEdit.wins}
+                        onChange={(event) => updateFormData({ ...driverToEdit, wins: parseInt(event.target.value) || 0 })}
                         required
                     />
                     <input
                         type='text'
                         name='team'
                         placeholder='Driver Team'
-                        value={form.team}
-                        onChange={handleChange}
+                        value={driverToEdit.team}
+                        onChange={(event) => updateFormData({ ...driverToEdit, team: event.target.value })}
                         required
                     />
-                    {/* On submit check if we are updating a driver or adding one */}
-                    <button type="submit">{form.id ? 'Update' : 'Add'} Driver</button>
+                    <button type="submit">{editMode ? 'Update' : 'Add'} Driver</button>
+                    <button type="button" onClick={cancelEdit}>Cancel</button>
                 </form>
             </div>
 
-            <ul className='driver-list'>
-                {/* Rendering the list of drivers */}
-                {drivers.map(driver => (
-                    <Driver key={driver.id} driver={driver} Delete={handleDelete} Edit={handleEdit} />
-                ))}
-            </ul>
+            {loading ? (
+                <div>Loading drivers...</div>
+            ) : (
+                <ul className='driver-list'>
+                    {drivers.length === 0 ? (
+                        <div>No drivers found. Add a driver to get started.</div>
+                    ) : (
+                        drivers.map(driver => (
+                            <Driver 
+                                key={driver.id} 
+                                driver={driver} 
+                                onDeleteDriver={handleDelete} 
+                                onEditDriver={editDriver} 
+                            />
+                        ))
+                    )}
+                </ul>
+            )}
         </div>
-    );
+    )
 }
 
-export default App;
+export default App
